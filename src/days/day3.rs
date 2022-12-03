@@ -1,42 +1,62 @@
-use fxhash::FxHashSet;
+use std::ops::BitAnd;
+
+struct BitSet(u64);
+
+impl BitSet {
+    pub fn reduce_sum(&self) -> u64 {
+        (0u64..64)
+            .map(|i| i * ((self.0 & (1 << i as usize)) != 0) as u8 as u64)
+            .sum()
+    }
+}
+
+impl FromIterator<u32> for BitSet {
+    fn from_iter<T: IntoIterator<Item = u32>>(iter: T) -> Self {
+        let mut bits = 0;
+        for byte in iter {
+            debug_assert!(byte < 64, "{byte} does not fit in 64-bit set");
+            bits |= 1 << byte as usize;
+        }
+        Self(bits)
+    }
+}
+
+impl BitAnd for BitSet {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self(self.0 & rhs.0)
+    }
+}
 
 #[aoc(day3, part1)]
-pub fn part1(input: &str) -> u32 {
+pub fn part1(input: &str) -> u64 {
     input
         .lines()
         .map(|line| line.split_at(line.len() / 2))
         .map(|(p1, p2)| {
             (
-                p1.chars().collect::<FxHashSet<_>>(),
-                p2.chars().collect::<FxHashSet<_>>(),
+                p1.chars().map(char_to_priority).collect::<BitSet>(),
+                p2.chars().map(char_to_priority).collect::<BitSet>(),
             )
         })
-        .flat_map(|(s1, s2)| s1.intersection(&s2).copied().collect::<Vec<_>>())
-        .map(char_to_priority)
+        .map(|(s1, s2)| (s1 & s2).reduce_sum())
         .sum()
 }
 
 #[aoc(day3, part2)]
-pub fn part2(input: &str) -> u32 {
+pub fn part2(input: &str) -> u64 {
     let lines = input.lines().collect::<Vec<_>>();
     lines
         .chunks(3)
         .map(|lines| {
             (
-                lines[0].chars().collect::<FxHashSet<_>>(),
-                lines[1].chars().collect::<FxHashSet<_>>(),
-                lines[2].chars().collect::<FxHashSet<_>>(),
+                lines[0].chars().map(char_to_priority).collect::<BitSet>(),
+                lines[1].chars().map(char_to_priority).collect::<BitSet>(),
+                lines[2].chars().map(char_to_priority).collect::<BitSet>(),
             )
         })
-        .flat_map(|(s1, s2, s3)| {
-            s1.intersection(&s2)
-                .copied()
-                .collect::<FxHashSet<_>>()
-                .intersection(&s3)
-                .copied()
-                .collect::<Vec<_>>()
-        })
-        .map(char_to_priority)
+        .map(|(s1, s2, s3)| (s1 & s2 & s3).reduce_sum())
         .sum()
 }
 
