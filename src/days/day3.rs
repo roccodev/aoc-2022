@@ -3,10 +3,11 @@ use std::ops::BitAnd;
 struct BitSet(u64);
 
 impl BitSet {
-    pub fn reduce_sum(&self) -> u32 {
-        (0u32..64)
-            .map(|i| i * ((self.0 & (1 << i)) != 0) as u8 as u32)
-            .sum()
+    pub fn reduce_sum(self) -> u32 {
+        // We can take advantage of the fact that the last set only has
+        // one element.
+        debug_assert_eq!(self.0.count_ones(), 1);
+        self.0.trailing_zeros()
     }
 }
 
