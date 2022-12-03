@@ -3,9 +3,9 @@ use std::ops::BitAnd;
 struct BitSet(u64);
 
 impl BitSet {
-    pub fn reduce_sum(&self) -> u64 {
-        (0u64..64)
-            .map(|i| i * ((self.0 & (1 << i as usize)) != 0) as u8 as u64)
+    pub fn reduce_sum(&self) -> u32 {
+        (0u32..64)
+            .map(|i| i * ((self.0 & (1 << i)) != 0) as u8 as u32)
             .sum()
     }
 }
@@ -30,7 +30,7 @@ impl BitAnd for BitSet {
 }
 
 #[aoc(day3, part1)]
-pub fn part1(input: &str) -> u64 {
+pub fn part1(input: &str) -> u32 {
     input
         .lines()
         .map(|line| line.split_at(line.len() / 2))
@@ -45,7 +45,7 @@ pub fn part1(input: &str) -> u64 {
 }
 
 #[aoc(day3, part2)]
-pub fn part2(input: &str) -> u64 {
+pub fn part2(input: &str) -> u32 {
     let lines = input.lines().collect::<Vec<_>>();
     lines
         .chunks(3)
