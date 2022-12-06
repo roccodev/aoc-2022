@@ -6,6 +6,7 @@ macro_rules! example {
 }
 
 pub mod days;
+pub mod util;
 
 #[macro_use]
 extern crate aoc_runner_derive;
