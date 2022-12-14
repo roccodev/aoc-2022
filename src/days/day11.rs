@@ -281,6 +281,6 @@ Monkey 3:
     If true: throw to monkey 0
     If false: throw to monkey 1
 "#;
-        assert_eq!(part2(&parse(input)), 10605);
+        assert_eq!(part2(&parse(input)), 2713310158);
     }
 }
