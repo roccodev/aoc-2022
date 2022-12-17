@@ -1,5 +1,6 @@
 use std::{iter::FromIterator, ops::BitAnd};
 
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Default, Debug)]
 pub struct BitSet(u64);
 
 impl BitSet {
@@ -16,6 +17,14 @@ impl BitSet {
 
     pub fn is_empty(self) -> bool {
         self.len() == 0
+    }
+
+    pub fn insert(&mut self, index: usize) {
+        self.0 |= 1 << index;
+    }
+
+    pub fn contains(&self, index: usize) -> bool {
+        self.0 & (1 << index) != 0
     }
 }
 
