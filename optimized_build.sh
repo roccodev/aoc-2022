@@ -6,12 +6,12 @@ RUSTFLAGS="-Cprofile-generate=/tmp/pgo-data -Ctarget-cpu=native" \
     cargo build --release --target=x86_64-unknown-linux-gnu
 
 # STEP 2: Run the instrumented binaries with some typical data
-./target/x86_64-unknown-linux-gnu/release/aoc_2021 2&>/dev/null
-./target/x86_64-unknown-linux-gnu/release/aoc_2021 2&>/dev/null
-./target/x86_64-unknown-linux-gnu/release/aoc_2021 2&>/dev/null
-./target/x86_64-unknown-linux-gnu/release/aoc_2021 2&>/dev/null
-./target/x86_64-unknown-linux-gnu/release/aoc_2021 2&>/dev/null
-./target/x86_64-unknown-linux-gnu/release/aoc_2021 2&>/dev/null
+/tmp/cargo-nx-skl/x86_64-unknown-linux-gnu/release/aoc_2022 2&>/dev/null
+/tmp/cargo-nx-skl/x86_64-unknown-linux-gnu/release/aoc_2022 2&>/dev/null
+/tmp/cargo-nx-skl/x86_64-unknown-linux-gnu/release/aoc_2022 2&>/dev/null
+/tmp/cargo-nx-skl/x86_64-unknown-linux-gnu/release/aoc_2022 2&>/dev/null
+/tmp/cargo-nx-skl/x86_64-unknown-linux-gnu/release/aoc_2022 2&>/dev/null
+/tmp/cargo-nx-skl/x86_64-unknown-linux-gnu/release/aoc_2022 2&>/dev/null
 
 # STEP 3: Merge the `.profraw` files into a `.profdata` file
 llvm-profdata merge -o /tmp/pgo-data/merged.profdata /tmp/pgo-data
