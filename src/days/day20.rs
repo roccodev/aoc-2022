@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 #[aoc_generator(day20)]
 fn parse(input: &str) -> Vec<i32> {
     input.lines().map(|l| l.parse().unwrap()).collect()
@@ -9,7 +11,7 @@ pub fn part1(input: &[i32]) -> i32 {
         .iter()
         .enumerate()
         .map(|(i, &v)| (v, i))
-        .collect::<Vec<_>>();
+        .collect::<VecDeque<_>>();
     let copy = buffer.clone();
 
     let len = buffer.len() as i32;
@@ -18,13 +20,15 @@ pub fn part1(input: &[i32]) -> i32 {
             continue;
         }
         let pos = buffer.iter().position(|&n| n == (num, idx)).unwrap() as i32;
-        let dir = num.signum();
-        let mut idx = pos;
-        for _ in 0..(num.abs().rem_euclid(len - 1)) {
-            let next_idx = (idx + dir).rem_euclid(len);
-            buffer.swap(idx as usize, next_idx as usize);
-            idx = next_idx;
+        buffer.remove(pos as usize);
+        // State repeats every (len - 1) swaps. For example,
+        // 0321 -> 0231 -> 0213 -> 0321
+        if num > 0 {
+            buffer.rotate_left((num % (len - 1)) as usize);
+        } else {
+            buffer.rotate_right((-num % (len - 1)) as usize);
         }
+        buffer.insert(pos as usize, (num, idx));
     }
     let zero = buffer.iter().position(|&n| n.0 == 0).unwrap();
     [1000, 2000, 3000]
@@ -39,7 +43,7 @@ pub fn part2(input: &[i32]) -> i64 {
         .iter()
         .enumerate()
         .map(|(i, &v)| (v as i64 * 811589153i64, i))
-        .collect::<Vec<_>>();
+        .collect::<VecDeque<_>>();
     let copy = buffer.clone();
 
     let len = buffer.len() as i64;
@@ -48,14 +52,14 @@ pub fn part2(input: &[i32]) -> i64 {
             if num == 0 {
                 continue;
             }
-            let pos = buffer.iter().position(|&n| n == (num, idx)).unwrap() as i64;
-            let dir = num.signum();
-            let mut idx = pos;
-            for _ in 0..(num.abs().rem_euclid(len - 1)) {
-                let next_idx = (idx + dir).rem_euclid(len);
-                buffer.swap(idx as usize, next_idx as usize);
-                idx = next_idx;
+            let pos = buffer.iter().position(|&n| n == (num, idx)).unwrap() as i32;
+            buffer.remove(pos as usize);
+            if num > 0 {
+                buffer.rotate_left((num % (len - 1)) as usize);
+            } else {
+                buffer.rotate_right((-num % (len - 1)) as usize);
             }
+            buffer.insert(pos as usize, (num, idx));
         }
     }
     let zero = buffer.iter().position(|&n| n.0 == 0).unwrap();
@@ -78,7 +82,7 @@ mod tests {
 -2
 0
 4"#;
-        assert_eq!(part1(&parse(input)), 10605);
+        assert_eq!(part1(&parse(input)), 3);
     }
 
     #[test]
@@ -90,6 +94,6 @@ mod tests {
 -2
 0
 4"#;
-        assert_eq!(part2(&parse(input)), 0);
+        assert_eq!(part2(&parse(input)), 1623178306);
     }
 }
