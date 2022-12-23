@@ -16,6 +16,7 @@ RUSTFLAGS="-Cprofile-generate=/tmp/pgo-data -Ctarget-cpu=native" \
 # STEP 3: Merge the `.profraw` files into a `.profdata` file
 llvm-profdata merge -o /tmp/pgo-data/merged.profdata /tmp/pgo-data
 
+sleep 5;
 # STEP 4: Use the `.profdata` file for guiding optimizations
 RUSTFLAGS="-Cprofile-use=/tmp/pgo-data/merged.profdata -Ctarget-cpu=native -Cllvm-args=-pgo-warn-missing-function" \
     cargo build --release --target=x86_64-unknown-linux-gnu

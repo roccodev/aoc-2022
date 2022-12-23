@@ -3,7 +3,7 @@ use fxhash::{FxHashMap, FxHashSet};
 #[derive(Clone, Debug)]
 pub struct Grid {
     elves: FxHashSet<(isize, isize)>,
-    directions: Vec<Direction>,
+    directions: [Direction; 4],
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -91,7 +91,7 @@ fn parse(input: &str) -> Grid {
         .collect();
     Grid {
         elves,
-        directions: vec![
+        directions: [
             Direction::North,
             Direction::South,
             Direction::West,
@@ -137,7 +137,7 @@ mod tests {
 #.###..
 ##.#.##
 .#..#.."#;
-        assert_eq!(part1(&parse(input)), 3);
+        assert_eq!(part1(&parse(input)), 110);
     }
 
     #[test]
@@ -149,6 +149,6 @@ mod tests {
 #.###..
 ##.#.##
 .#..#.."#;
-        assert_eq!(part2(&parse(input)), 1623178306);
+        assert_eq!(part2(&parse(input)), 20);
     }
 }

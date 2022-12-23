@@ -1,4 +1,5 @@
 use enum_map::{Enum, EnumMap};
+use enumset::{EnumSet, EnumSetType};
 use fxhash::FxHashSet;
 use rayon::prelude::*;
 
@@ -16,7 +17,7 @@ struct Inventory {
 #[derive(Debug)]
 struct Cost(Resource, i32);
 
-#[derive(Enum, PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(Enum, EnumSetType, Debug)]
 enum Resource {
     Geode,
     Ore,
@@ -24,12 +25,18 @@ enum Resource {
     Obsidian,
 }
 
+#[derive(Default)]
+struct LastPurchase {
+    afforded: EnumSet<Resource>,
+    bought: bool,
+}
+
 impl Blueprint {
-    fn affordable_by(&self, inventory: &Inventory) -> EnumMap<Resource, bool> {
+    fn affordable_by(&self, inventory: &Inventory) -> EnumSet<Resource> {
         self.costs
             .iter()
             .filter(|cost| inventory.can_afford(cost.1))
-            .map(|t| (t.0, true))
+            .map(|(r, _)| r)
             .collect()
     }
 
@@ -47,6 +54,7 @@ impl Blueprint {
         minute: i32,
         explored: &mut FxHashSet<(Inventory, i32)>,
         max: &mut i32,
+        last_purchase: LastPurchase,
     ) {
         let geode_count = inventory.items[Resource::Geode];
         if minute <= 0 {
@@ -64,33 +72,62 @@ impl Blueprint {
         }
         explored.insert((inventory.clone(), minute));
         let before_purchase = inventory.generators;
-        let mut had_geode = false;
         let mut skip_branch = false;
-        for (resource, _) in self
-            .affordable_by(&inventory)
-            .into_iter()
-            .filter(|(_, b)| *b)
-        {
-            if had_geode {
-                return;
+        let afforded = self.affordable_by(&inventory);
+        if afforded.contains(Resource::Geode) {
+            let mut clone = inventory.clone();
+            self.purchase(&mut clone, Resource::Geode);
+            clone.generate(&before_purchase);
+            self.search_recurse(
+                clone,
+                minute - 1,
+                explored,
+                max,
+                LastPurchase {
+                    afforded,
+                    bought: true,
+                },
+            );
+            return;
+        }
+        for resource in afforded.into_iter().filter(|r| *r != Resource::Geode) {
+            if minute == 1 {
+                continue;
             }
-            if resource != Resource::Geode {
-                if inventory.generators[resource] >= self.max_costs[resource] {
-                    skip_branch = true;
-                    continue;
-                }
-            } else {
-                had_geode = true;
+            if last_purchase.afforded.contains(resource) && !last_purchase.bought {
                 skip_branch = true;
+                continue;
+            }
+            if inventory.generators[resource] >= self.max_costs[resource] {
+                skip_branch = true;
+                continue;
             }
             let mut clone = inventory.clone();
             self.purchase(&mut clone, resource);
             clone.generate(&before_purchase);
-            self.search_recurse(clone, minute - 1, explored, max);
+            self.search_recurse(
+                clone,
+                minute - 1,
+                explored,
+                max,
+                LastPurchase {
+                    afforded,
+                    bought: true,
+                },
+            );
         }
         if !skip_branch {
             inventory.generate(&before_purchase);
-            self.search_recurse(inventory, minute - 1, explored, max);
+            self.search_recurse(
+                inventory,
+                minute - 1,
+                explored,
+                max,
+                LastPurchase {
+                    afforded,
+                    bought: false,
+                },
+            );
         }
     }
 }
@@ -155,7 +192,7 @@ pub fn part1(input: &[Blueprint]) -> i32 {
             inventory.generators[Resource::Ore] = 1;
             let mut memo = FxHashSet::default();
             let mut max = 0;
-            blueprint.search_recurse(inventory, 24, &mut memo, &mut max);
+            blueprint.search_recurse(inventory, 24, &mut memo, &mut max, Default::default());
             (i as i32 + 1) * max
         })
         .sum()
@@ -172,7 +209,7 @@ pub fn part2(input: &[Blueprint]) -> i32 {
             let mut memo =
                 FxHashSet::with_capacity_and_hasher(2_900_000, fxhash::FxBuildHasher::default());
             let mut max = 0;
-            blueprint.search_recurse(inventory, 32, &mut memo, &mut max);
+            blueprint.search_recurse(inventory, 32, &mut memo, &mut max, Default::default());
             max
         })
         .product()
