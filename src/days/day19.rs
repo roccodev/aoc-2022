@@ -95,7 +95,6 @@ impl Blueprint {
                 continue;
             }
             if last_purchase.afforded.contains(resource) && !last_purchase.bought {
-                skip_branch = true;
                 continue;
             }
             if inventory.generators[resource] >= self.max_costs[resource] {

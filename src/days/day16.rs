@@ -1,10 +1,6 @@
-use std::{
-    cmp::Reverse,
-    collections::{BinaryHeap, VecDeque},
-    usize,
-};
+use std::{cmp::Reverse, collections::BinaryHeap, usize};
 
-use fxhash::{FxHashMap, FxHashSet};
+use fxhash::FxHashMap;
 use regex::Regex;
 
 use crate::util::BitSet;
@@ -33,12 +29,13 @@ struct Neighbor {
     cost: i32,
 }
 
+// Field order matters for hash and comparison performance
 #[derive(Eq, PartialEq, Hash)]
 struct MemoState {
-    player_id: u8,
-    node: u16,
-    minutes: i32,
+    minutes: u8,
     visited: BitSet,
+    node: u16,
+    player_id: bool,
 }
 
 #[aoc_generator(day16)]
@@ -114,9 +111,9 @@ fn move_valve(
         return 0;
     }
     let memo_state = MemoState {
-        player_id,
+        player_id: player_id == 1,
         node: node.key,
-        minutes,
+        minutes: minutes as u8,
         visited,
     };
     if let Some(res) = memo.get(&memo_state) {
@@ -145,7 +142,7 @@ fn move_valve(
         let elephant_result = move_valve(map, &map.nodes[&map.aa_key], 26, 0, memo, visited);
         neighbors_score = neighbors_score.max(elephant_result);
     }
-    let res = node.flow_rate * (minutes) + neighbors_score;
+    let res = node.flow_rate * minutes + neighbors_score;
     memo.insert(memo_state, res);
     res
 }

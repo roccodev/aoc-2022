@@ -28,6 +28,12 @@ impl BitSet {
     }
 }
 
+impl From<BitSet> for u64 {
+    fn from(value: BitSet) -> Self {
+        value.0
+    }
+}
+
 impl FromIterator<u32> for BitSet {
     fn from_iter<T: IntoIterator<Item = u32>>(iter: T) -> Self {
         let mut bits = 0;
