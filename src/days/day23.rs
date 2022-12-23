@@ -2,11 +2,11 @@ use fxhash::{FxHashMap, FxHashSet};
 
 #[derive(Clone, Debug)]
 pub struct Grid {
-    elves: FxHashSet<(isize, isize)>,
+    elves: FxHashSet<(i32, i32)>,
     directions: [Direction; 4],
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Direction {
     North,
     South,
@@ -17,28 +17,28 @@ enum Direction {
 impl Grid {
     fn get_elf_moves(
         &self,
-        elf: (isize, isize),
-        destinations: &mut FxHashMap<(isize, isize), Vec<(isize, isize)>>,
+        elf: (i32, i32),
+        destinations: &mut FxHashMap<(i32, i32), Vec<(i32, i32)>>,
     ) {
-        if self
-            .directions
-            .iter()
-            .all(|&dir| !self.check_obstructed(elf, dir))
-        {
-            return;
-        }
         let direction = self
             .directions
             .iter()
             .find(|dir| !self.check_obstructed(elf, **dir));
-        if let Some(direction) = direction {
+        if let Some(&direction) = direction {
+            if self
+                .directions
+                .iter()
+                .all(|&dir| direction == dir || !self.check_obstructed(elf, dir))
+            {
+                return;
+            }
             let pos_mod = direction.get_pos_mod();
             let dest = (elf.0 + pos_mod.0, elf.1 + pos_mod.1);
             destinations.entry(dest).or_default().push(elf);
         }
     }
 
-    fn check_obstructed(&self, source: (isize, isize), direction: Direction) -> bool {
+    fn check_obstructed(&self, source: (i32, i32), direction: Direction) -> bool {
         let pos_mod = direction.get_pos_mod();
         let dest = (source.0 + pos_mod.0, source.1 + pos_mod.1);
         match direction {
@@ -52,7 +52,8 @@ impl Grid {
     }
 
     fn run_turn(&mut self) -> bool {
-        let mut destinations = FxHashMap::default();
+        let mut destinations =
+            FxHashMap::with_capacity_and_hasher(self.elves.len(), fxhash::FxBuildHasher::default());
         for elf in &self.elves {
             self.get_elf_moves(*elf, &mut destinations);
         }
@@ -68,7 +69,7 @@ impl Grid {
 }
 
 impl Direction {
-    fn get_pos_mod(&self) -> (isize, isize) {
+    fn get_pos_mod(&self) -> (i32, i32) {
         match self {
             Self::North => (0, -1),
             Self::South => (0, 1),
@@ -86,7 +87,7 @@ fn parse(input: &str) -> Grid {
         .flat_map(|(y, line)| {
             line.chars()
                 .enumerate()
-                .filter_map(move |(x, c)| (c == '#').then_some((x as isize, y as isize)))
+                .filter_map(move |(x, c)| (c == '#').then_some((x as i32, y as i32)))
         })
         .collect();
     Grid {
@@ -101,7 +102,7 @@ fn parse(input: &str) -> Grid {
 }
 
 #[aoc(day23, part1)]
-pub fn part1(input: &Grid) -> isize {
+pub fn part1(input: &Grid) -> i32 {
     let mut grid = input.clone();
     for _ in 0..10 {
         grid.run_turn();
@@ -110,11 +111,11 @@ pub fn part1(input: &Grid) -> isize {
     let max_x = grid.elves.iter().map(|(x, _)| x).max().unwrap();
     let min_y = grid.elves.iter().map(|(_, y)| y).min().unwrap();
     let max_y = grid.elves.iter().map(|(_, y)| y).max().unwrap();
-    (max_x + 1 - min_x) * (max_y + 1 - min_y) - grid.elves.len() as isize
+    (max_x + 1 - min_x) * (max_y + 1 - min_y) - grid.elves.len() as i32
 }
 
 #[aoc(day23, part2)]
-pub fn part2(input: &Grid) -> i64 {
+pub fn part2(input: &Grid) -> i32 {
     let mut grid = input.clone();
     for i in 1.. {
         if !grid.run_turn() {
