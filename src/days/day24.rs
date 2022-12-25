@@ -1,23 +1,23 @@
-use std::{collections::VecDeque, fmt::Display};
+use std::collections::VecDeque;
 
-use enumset::{enum_set, EnumSet, EnumSetType};
+use enumset::{EnumSet, EnumSetType};
 use fxhash::FxHashSet;
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Grid {
-    inner: Vec<Vec<Cell>>,
+    cells: Vec<Vec<Cell>>,
     width: usize,
     height: usize,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum Cell {
     Empty,
     Wall,
-    Blizzards(EnumSet<Direction>),
+    Blizzard(Direction),
 }
 
-#[derive(EnumSetType)]
+#[derive(EnumSetType, Debug)]
 enum Direction {
     Up,
     Down,
@@ -25,32 +25,34 @@ enum Direction {
     Right,
 }
 
+#[derive(Clone, PartialEq, Eq, Debug)]
+struct Blizzard {
+    initial_pos: (usize, usize),
+    direction: Direction,
+}
+
 impl Grid {
-    // IDEA: instead of moving blizzards, calculate their position every time based on current time
-    fn move_blizzards(&mut self) {
-        let mut clone = self.inner.clone();
-        for y in 1..1 + self.height {
-            for cell in self.inner[y].iter_mut().skip(1).take(self.width) {
-                *cell = Cell::Empty;
-            }
-        }
-        for y in 1..1 + self.height {
-            for x in 1..1 + self.width {
-                let cell = &mut clone[y][x];
-                for direction in cell.take_blizzards() {
-                    let new_cell = self.blizz_cell_at((x, y), direction);
-                    self.inner[new_cell.1][new_cell.0].add_blizzard(direction);
-                }
-            }
-        }
+    fn has_blizzard(&self, pos: (usize, usize), time: usize) -> bool {
+        let width = self.width as isize;
+        let height = self.height as isize;
+        let time = time as isize;
+        let (x, y) = (pos.0 as isize, pos.1 as isize);
+        self.is_blizzard_direction((x, self.wrap(y + time + 1, height)), Direction::Up)
+            || self.is_blizzard_direction((x, self.wrap(y - time - 1, height)), Direction::Down)
+            || self.is_blizzard_direction((self.wrap(x - time - 1, width), y), Direction::Right)
+            || self.is_blizzard_direction((self.wrap(x + time + 1, width), y), Direction::Left)
     }
 
-    fn blizz_cell_at(&self, start: (usize, usize), direction: Direction) -> (usize, usize) {
-        let (dx, dy) = direction.get_pos_mod();
-        (
-            (start.0 as isize + dx - 1).rem_euclid(self.width as isize) as usize + 1,
-            (start.1 as isize + dy - 1).rem_euclid(self.height as isize) as usize + 1,
-        )
+    #[inline(always)]
+    fn wrap(&self, coord: isize, val: isize) -> isize {
+        (coord - 1).rem_euclid(val) + 1
+    }
+
+    fn is_blizzard_direction(&self, pos: (isize, isize), direction: Direction) -> bool {
+        match self.cells[pos.1 as usize][pos.0 as usize] {
+            Cell::Blizzard(dir) => dir == direction,
+            _ => false,
+        }
     }
 
     fn is_end(&self, pos: (usize, usize), reverse: bool) -> bool {
@@ -61,46 +63,31 @@ impl Grid {
         }
     }
 
-    fn get_neighbors(&self, pos: (usize, usize), reverse: bool) -> Vec<(usize, usize)> {
+    fn get_neighbors(
+        &self,
+        pos: (usize, usize),
+        time: usize,
+        reverse: bool,
+    ) -> Vec<(usize, usize)> {
         EnumSet::<Direction>::all()
             .into_iter()
             .filter_map(|dir| {
                 let (dx, dy) = dir.get_pos_mod();
                 let new_pos = (pos.0 as isize + dx, pos.1 as isize + dy);
+                if self.is_end((new_pos.0 as usize, new_pos.1 as usize), reverse) {
+                    return Some((new_pos.0 as usize, new_pos.1 as usize));
+                }
                 if new_pos.0 < 1
-                    || new_pos.1 < 0
+                    || new_pos.1 < 1
                     || new_pos.0 > self.width as isize
-                    || new_pos.1 > self.height as isize + 1
+                    || new_pos.1 > self.height as isize
                 {
                     return None;
                 }
                 let new_pos = (new_pos.0 as usize, new_pos.1 as usize);
-                (self.inner[new_pos.1][new_pos.0] == Cell::Empty).then_some(new_pos)
+                (!self.has_blizzard(new_pos, time)).then_some(new_pos)
             })
             .collect()
-    }
-}
-
-impl Cell {
-    fn take_blizzards(&mut self) -> EnumSet<Direction> {
-        match self {
-            Self::Empty | Self::Wall => Default::default(),
-            Self::Blizzards(set) => {
-                let set = *set;
-                *self = Self::Empty;
-                set
-            }
-        }
-    }
-
-    fn add_blizzard(&mut self, direction: Direction) {
-        match self {
-            Self::Empty => *self = Self::Blizzards(enum_set!(direction)),
-            Self::Blizzards(set) => {
-                set.insert(direction);
-            }
-            _ => {}
-        }
     }
 }
 
@@ -115,67 +102,28 @@ impl Direction {
     }
 }
 
-impl Display for Cell {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Empty => write!(f, "."),
-            Self::Wall => write!(f, "#"),
-            Self::Blizzards(set) => {
-                if set.len() != 1 {
-                    write!(f, "{}", set.len())
-                } else {
-                    for dir in *set {
-                        write!(
-                            f,
-                            "{}",
-                            match dir {
-                                Direction::Up => "^",
-                                Direction::Down => "v",
-                                Direction::Left => "<",
-                                Direction::Right => ">",
-                            }
-                        )?
-                    }
-                    Ok(())
-                }
-            }
-        }
-    }
-}
-
-impl Display for Grid {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for y in 0..self.height + 2 {
-            for x in 0..self.width + 2 {
-                write!(f, "{}", self.inner[y][x])?;
-            }
-            writeln!(f)?;
-        }
-        Ok(())
-    }
-}
-
-fn bfs(start: (usize, usize), grid: Grid, reverse: bool) -> (usize, Grid) {
+fn bfs(start: (usize, usize), grid: Grid, reverse: bool, step: usize) -> (usize, Grid) {
     let mut explored: FxHashSet<((usize, usize), usize)> = FxHashSet::default();
-    let mut to_visit: VecDeque<((usize, usize), Grid, usize)> = VecDeque::new();
+    let mut to_visit: VecDeque<((usize, usize), usize)> = VecDeque::new();
 
-    explored.insert((start, 0));
-    to_visit.push_back((start, grid, 0));
+    explored.insert((start, step));
+    to_visit.push_back((start, step));
 
-    while let Some((pos, mut grid, steps)) = to_visit.pop_front() {
+    while let Some((pos, steps)) = to_visit.pop_front() {
         if grid.is_end(pos, reverse) {
             return (steps, grid);
         }
-        grid.move_blizzards();
-        for neighbor in grid.get_neighbors(pos, reverse) {
-            if !explored.contains(&(neighbor, steps + 1)) {
-                explored.insert((neighbor, steps + 1));
-                to_visit.push_back((neighbor, grid.clone(), steps + 1));
+        // States repeat after (w-2 * h-2) iterations
+        let unique_step = (steps + 1) % (grid.width * grid.height);
+        for neighbor in grid.get_neighbors(pos, steps, reverse) {
+            if !explored.contains(&(neighbor, unique_step)) {
+                explored.insert((neighbor, unique_step));
+                to_visit.push_back((neighbor, steps + 1));
             }
         }
-        if grid.inner[pos.1][pos.0] == Cell::Empty && !explored.contains(&(pos, steps + 1)) {
-            explored.insert((pos, steps + 1));
-            to_visit.push_back((pos, grid.clone(), steps + 1));
+        if !grid.has_blizzard(pos, steps) && !explored.contains(&(pos, unique_step)) {
+            explored.insert((pos, unique_step));
+            to_visit.push_back((pos, steps + 1));
         }
     }
     panic!("end not reached")
@@ -190,10 +138,10 @@ fn parse(input: &str) -> Grid {
                 .map(|c| match c {
                     '#' => Cell::Wall,
                     '.' => Cell::Empty,
-                    '>' => Cell::Blizzards(enum_set!(Direction::Right)),
-                    '<' => Cell::Blizzards(enum_set!(Direction::Left)),
-                    'v' => Cell::Blizzards(enum_set!(Direction::Down)),
-                    '^' => Cell::Blizzards(enum_set!(Direction::Up)),
+                    '>' => Cell::Blizzard(Direction::Right),
+                    '<' => Cell::Blizzard(Direction::Left),
+                    'v' => Cell::Blizzard(Direction::Down),
+                    '^' => Cell::Blizzard(Direction::Up),
                     c => panic!("invalid char {c}"),
                 })
                 .collect()
@@ -202,23 +150,23 @@ fn parse(input: &str) -> Grid {
     Grid {
         width: cells[0].len() - 2,
         height: cells.len() - 2,
-        inner: cells,
+        cells,
     }
 }
 
 #[aoc(day24, part1)]
 pub fn part1(input: &Grid) -> usize {
     let grid = input.clone();
-    bfs((1, 0), grid, false).0
+    bfs((1, 0), grid, false, 0).0
 }
 
 #[aoc(day24, part2)]
 pub fn part2(input: &Grid) -> usize {
     let grid = input.clone();
-    let (steps_a, grid) = bfs((1, 0), grid, false);
-    let (steps_b, grid) = bfs((grid.width, grid.height + 1), grid, true);
-    let (steps_c, _) = bfs((1, 0), grid, false);
-    steps_a + steps_b + steps_c
+    let (steps_a, grid) = bfs((1, 0), grid, false, 0);
+    let (steps_b, grid) = bfs((grid.width, grid.height + 1), grid, true, steps_a);
+    let (steps_c, _) = bfs((1, 0), grid, false, steps_b);
+    steps_c
 }
 
 #[cfg(test)]
