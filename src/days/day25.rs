@@ -97,6 +97,6 @@ mod tests {
 1=
 122
 "#;
-        assert_eq!(part1(&parse(input)), "3");
+        assert_eq!(part1(&parse(input)), "2=-1=0");
     }
 }
